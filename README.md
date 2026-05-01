@@ -31,6 +31,30 @@ pip install mocharpa[excel,word]
 pip install mocharpa[plugins]
 ```
 
+## 命令行
+
+安装后可使用 `mocharpa` 命令运行 YAML/JSON 流水线：
+
+```bash
+# 运行 YAML 流水线（MockDriver）
+mocharpa run pipeline.yaml
+
+# 运行 JSON 流水线
+mocharpa run pipeline.json
+
+# 使用 Playwright 浏览器驱动
+mocharpa run login.yaml --driver playwright
+
+# 传入初始数据并开启详细日志
+mocharpa run workflow.yaml --data env=prod user=admin --verbose
+```
+
+也可通过模块方式调用：
+
+```bash
+python -m mocharpa run pipeline.yaml
+```
+
 ## 快速开始
 
 ```python

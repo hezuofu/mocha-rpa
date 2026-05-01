@@ -26,6 +26,9 @@ dependencies = [
     "typing_extensions>=4.0",
 ]
 
+[project.scripts]
+mocharpa = "mocharpa.__main__:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
