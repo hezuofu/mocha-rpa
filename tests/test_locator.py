@@ -1,7 +1,7 @@
 """Tests for the locator system."""
 
 import pytest
-from rpabot.core.locator import (
+from mocharpa.core.locator import (
     Locator,
     ById,
     ByName,
@@ -12,7 +12,7 @@ from rpabot.core.locator import (
     LocatorChain,
     LocatorFactory,
 )
-from rpabot.core.element import Rectangle
+from mocharpa.core.element import Rectangle
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """Tests for Element and Rectangle."""
 
 import pytest
-from rpabot.core.element import Element, Rectangle
+from mocharpa.core.element import Element, Rectangle
 
 
 class TestRectangle:
@@ -102,7 +102,7 @@ class TestElement:
         assert "keys:hello" in actions
 
     def test_locator_reference(self):
-        from rpabot.core.locator import ByName
+        from mocharpa.core.locator import ByName
 
         native = _FakeNative(Name="X")
         loc = ByName("X")

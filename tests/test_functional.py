@@ -1,7 +1,7 @@
 """Tests for the functional utilities."""
 
 import pytest
-from rpabot.functional.utils import (
+from mocharpa.functional.utils import (
     retry,
     pipe,
     tap,
@@ -10,8 +10,8 @@ from rpabot.functional.utils import (
     wait_until,
     ignore_err,
 )
-from rpabot.core.context import AutomationContext
-from rpabot.core.exceptions import TimeoutError
+from mocharpa.core.context import AutomationContext
+from mocharpa.core.exceptions import TimeoutError
 
 
 class TestRetry:

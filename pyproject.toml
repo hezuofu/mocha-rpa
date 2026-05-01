@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rpabot"
+name = "mocharpa"
 version = "0.1.0"
 description = "A modern, extensible RPA bot framework with OOP and functional-friendly APIs"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [{name = "RPA Framework Team"}]
-keywords = ["rpa", "automation", "uiautomation", "robotic-process-automation", "rpabot"]
+keywords = ["rpa", "automation", "uiautomation", "robotic-process-automation", "mocharpa"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -50,7 +50,7 @@ yaml = [
     "pyyaml>=6.0",
 ]
 plugins = [
-    "rpabot[excel,word]",
+    "mocharpa[excel,word]",
     "playwright>=1.40",
     "requests>=2.28",
     "openpyxl>=3.1",
@@ -60,7 +60,7 @@ plugins = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["rpabot", "rpabot.*"]
+include = ["mocharpa", "mocharpa.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

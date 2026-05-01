@@ -11,12 +11,12 @@ import asyncio
 # Setup: import framework components and configure context
 # -------------------------------------------------------
 
-from rpabot.drivers.mock_driver import MockDriver, MockNativeElement
-from rpabot.core.context import AutomationContext
-from rpabot.builder.find_builder import Find
-from rpabot.functional.utils import retry, pipe, tap, maybe, ignore_err
-from rpabot.plugin.base import PluginManager
-from rpabot.async_api.wrappers import AsyncFind, async_retry, run_async, gather
+from mocharpa.drivers.mock_driver import MockDriver, MockNativeElement
+from mocharpa.core.context import AutomationContext
+from mocharpa.builder.find_builder import Find
+from mocharpa.functional.utils import retry, pipe, tap, maybe, ignore_err
+from mocharpa.plugin.base import PluginManager
+from mocharpa.async_api.wrappers import AsyncFind, async_retry, run_async, gather
 
 
 def create_context():
@@ -139,14 +139,14 @@ print("=" * 60)
 print("Example 3: Locator chains and string parsing")
 print("=" * 60)
 
-from rpabot.core.locator import LocatorFactory
+from mocharpa.core.locator import LocatorFactory
 
 # Using string syntax to build a composite locator
 locator = LocatorFactory.create("name:Login Window > type:Window")
 print(f"  Parsed locator: {locator}")
 
 # Using & operator
-from rpabot.core.locator import ByName, ByType
+from mocharpa.core.locator import ByName, ByType
 chain = ByName("Login") & ByType("Window")
 print(f"  &-chain: {chain}")
 
@@ -243,7 +243,7 @@ print("=" * 60)
 print("Example 6: Error handling")
 print("=" * 60)
 
-from rpabot.core.exceptions import ElementNotFound
+from mocharpa.core.exceptions import ElementNotFound
 
 # Using maybe for optional elements
 safe_result = maybe(

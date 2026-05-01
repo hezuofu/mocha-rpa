@@ -2,12 +2,12 @@
 
 import pytest
 
-from rpabot.pipeline.context import PipelineContext
-from rpabot.pipeline.step import Step, StepResult
-from rpabot.pipeline.pipeline import Pipeline, PipelineResult
+from mocharpa.pipeline.context import PipelineContext
+from mocharpa.pipeline.step import Step, StepResult
+from mocharpa.pipeline.pipeline import Pipeline, PipelineResult
 
-from rpabot.core.context import AutomationContext
-from rpabot.drivers.mock_driver import MockDriver, MockNativeElement
+from mocharpa.core.context import AutomationContext
+from mocharpa.drivers.mock_driver import MockDriver, MockNativeElement
 
 
 # ======================================================================

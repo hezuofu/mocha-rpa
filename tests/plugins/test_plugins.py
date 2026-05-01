@@ -5,8 +5,8 @@ import tempfile
 
 import pytest
 
-from rpabot.core.context import AutomationContext
-from rpabot.plugin.base import PluginManager
+from mocharpa.core.context import AutomationContext
+from mocharpa.plugin.base import PluginManager
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -23,7 +23,7 @@ def tmp_dir():
 # ===========================================================================
 
 try:
-    from rpabot.plugins.excel.plugin import ExcelPlugin
+    from mocharpa.plugins.excel.plugin import ExcelPlugin
 
     class TestExcelPlugin:
         def test_lifecycle(self):
@@ -75,7 +75,7 @@ except ImportError:
 # ===========================================================================
 
 try:
-    from rpabot.plugins.word.plugin import WordPlugin
+    from mocharpa.plugins.word.plugin import WordPlugin
 
     class TestWordPlugin:
         def test_lifecycle(self):
@@ -122,7 +122,7 @@ except ImportError:
 # ===========================================================================
 
 try:
-    from rpabot.plugins.http.client import HTTPPlugin
+    from mocharpa.plugins.http.client import HTTPPlugin
 
     class TestHTTPPlugin:
         def test_lifecycle(self):
@@ -152,7 +152,7 @@ except ImportError:
 # ===========================================================================
 
 try:
-    from rpabot.plugins.database.plugin import DatabasePlugin
+    from mocharpa.plugins.database.plugin import DatabasePlugin
 
     class TestDatabasePlugin:
         def test_lifecycle_sqlite(self, tmp_dir):

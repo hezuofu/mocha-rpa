@@ -2,7 +2,7 @@
 
 import pytest
 
-from rpabot.flow.conditions import (
+from mocharpa.flow.conditions import (
     exists as cond_exists,
     not_exists,
     visible,
@@ -19,14 +19,14 @@ from rpabot.flow.conditions import (
     OR,
     NOT,
 )
-from rpabot.flow.branching import if_, switch_
-from rpabot.flow.loops import for_each, while_, until_, repeat
-from rpabot.flow.sequence import sequence, try_catch
+from mocharpa.flow.branching import if_, switch_
+from mocharpa.flow.loops import for_each, while_, until_, repeat
+from mocharpa.flow.sequence import sequence, try_catch
 
-from rpabot.core.exceptions import ElementNotFound
-from rpabot.core.context import AutomationContext
-from rpabot.builder.find_builder import Find
-from rpabot.drivers.mock_driver import MockDriver, MockNativeElement
+from mocharpa.core.exceptions import ElementNotFound
+from mocharpa.core.context import AutomationContext
+from mocharpa.builder.find_builder import Find
+from mocharpa.drivers.mock_driver import MockDriver, MockNativeElement
 
 
 # ======================================================================

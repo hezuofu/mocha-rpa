@@ -1,10 +1,10 @@
 """Integration tests using MockDriver and FindBuilder."""
 
 import pytest
-from rpabot.core.locator import ByName, ByType, LocatorFactory
-from rpabot.core.context import AutomationContext
-from rpabot.builder.find_builder import FindBuilder, Find
-from rpabot.drivers.mock_driver import MockDriver, MockNativeElement
+from mocharpa.core.locator import ByName, ByType, LocatorFactory
+from mocharpa.core.context import AutomationContext
+from mocharpa.builder.find_builder import FindBuilder, Find
+from mocharpa.drivers.mock_driver import MockDriver, MockNativeElement
 
 
 @pytest.fixture
