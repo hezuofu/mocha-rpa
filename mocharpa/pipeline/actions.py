@@ -703,3 +703,121 @@ def queue_fail(msg_id: Any, error: Any = "") -> Callable[[Any], Any]:
         plugin = ctx.plugin("queue")
         return plugin.fail(int(resolved_id), str(resolved_error))
     return _action
+
+
+# ======================================================================
+# AI Actions
+# ======================================================================
+
+def ai_generate(
+    prompt: Any,
+    *,
+    content: Any = "",
+    system: Any = "",
+    temperature: Any = 0.7,
+) -> Callable[[Any], Any]:
+    """Generate text using AI.  *content* defaults to ``ctx.previous`` when empty."""
+    def _action(ctx: Any) -> Any:
+        resolved_prompt = _resolve(ctx, prompt)
+        resolved_content = _resolve(ctx, content) if content else ctx.previous or ""
+        resolved_system = _resolve(ctx, system) or ""
+        resolved_temp = float(_resolve(ctx, temperature))
+        plugin = ctx.plugin("ai")
+        return plugin.generate(
+            resolved_prompt,
+            content=str(resolved_content),
+            system=str(resolved_system),
+            temperature=resolved_temp,
+        )
+    return _action
+
+
+def ai_extract(
+    content: Any = "",
+    schema: Any = None,
+    *,
+    temperature: Any = 0.0,
+) -> Callable[[Any], Any]:
+    """Extract structured data from *content* using AI.
+
+    *content* defaults to ``ctx.previous``.  *schema* must be a dict
+    like ``{"name": "str", "price": "float"}``.
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_content = _resolve(ctx, content) if content else ctx.previous or ""
+        resolved_schema = _resolve(ctx, schema) if schema is not None else {}
+        resolved_temp = float(_resolve(ctx, temperature))
+        plugin = ctx.plugin("ai")
+        return plugin.extract(
+            str(resolved_content),
+            schema=resolved_schema,
+            temperature=resolved_temp,
+        )
+    return _action
+
+
+def ai_classify(
+    content: Any = "",
+    categories: Any = None,
+    *,
+    temperature: Any = 0.0,
+) -> Callable[[Any], Any]:
+    """Classify *content* into one of the given *categories*.
+
+    *content* defaults to ``ctx.previous``.  *categories* must be a list of strings.
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_content = _resolve(ctx, content) if content else ctx.previous or ""
+        resolved_categories = _resolve(ctx, categories) if categories is not None else []
+        resolved_temp = float(_resolve(ctx, temperature))
+        plugin = ctx.plugin("ai")
+        return plugin.classify(
+            str(resolved_content),
+            categories=resolved_categories,
+            temperature=resolved_temp,
+        )
+    return _action
+
+
+def ai_summarize(
+    content: Any = "",
+    *,
+    system: Any = "",
+    temperature: Any = 0.3,
+) -> Callable[[Any], Any]:
+    """Summarize *content* using AI.  *content* defaults to ``ctx.previous``."""
+    def _action(ctx: Any) -> Any:
+        resolved_content = _resolve(ctx, content) if content else ctx.previous or ""
+        resolved_system = _resolve(ctx, system) or "You are a concise summariser. Return only the summary."
+        resolved_temp = float(_resolve(ctx, temperature))
+        plugin = ctx.plugin("ai")
+        return plugin.generate(
+            "Summarise the following content concisely.",
+            content=str(resolved_content),
+            system=str(resolved_system),
+            temperature=resolved_temp,
+        )
+    return _action
+
+
+def ai_decide(
+    question: Any,
+    *,
+    content: Any = "",
+    temperature: Any = 0.0,
+) -> Callable[[Any], Any]:
+    """Make a yes/no decision.  *content* defaults to ``ctx.previous``.
+
+    Returns ``True`` or ``False``.
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_question = _resolve(ctx, question)
+        resolved_content = _resolve(ctx, content) if content else ctx.previous or ""
+        resolved_temp = float(_resolve(ctx, temperature))
+        plugin = ctx.plugin("ai")
+        return plugin.decide(
+            str(resolved_question),
+            content=str(resolved_content),
+            temperature=resolved_temp,
+        )
+    return _action

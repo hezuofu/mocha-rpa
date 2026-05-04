@@ -42,6 +42,14 @@ except ImportError:
     FilePlugin = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
+# AI (anthropic / openai)
+# ---------------------------------------------------------------------------
+try:
+    from mocharpa.plugins.ai.plugin import AIPlugin
+except ImportError:
+    AIPlugin = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
 # Queue (builtins — sqlite3)
 # ---------------------------------------------------------------------------
 try:
@@ -75,4 +83,5 @@ __all__ = [
     "DatabasePlugin",
     "FilePlugin",
     "QueuePlugin",
+    "AIPlugin",
 ]

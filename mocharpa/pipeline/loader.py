@@ -67,6 +67,11 @@ def _get_action_registry() -> Dict[str, Callable[..., Any]]:
         "queue_pop": a.queue_pop,
         "queue_ack": a.queue_ack,
         "queue_fail": a.queue_fail,
+        "ai_generate": a.ai_generate,
+        "ai_extract": a.ai_extract,
+        "ai_classify": a.ai_classify,
+        "ai_summarize": a.ai_summarize,
+        "ai_decide": a.ai_decide,
     }
 
 
@@ -401,6 +406,49 @@ def _extract_action_args(action_type: str, data: dict) -> Dict[str, Any]:
     if action_type in ("queue_fail",):
         if "error" in data:
             args["error"] = data["error"]
+
+    # AI actions
+    if action_type in ("ai_generate",):
+        if "prompt" in data:
+            args["prompt"] = data["prompt"]
+        if "content" in data:
+            args["content"] = data["content"]
+        if "system" in data:
+            args["system"] = data["system"]
+        if "temperature" in data:
+            args["temperature"] = data["temperature"]
+
+    if action_type in ("ai_extract",):
+        if "content" in data:
+            args["content"] = data["content"]
+        if "schema" in data:
+            args["schema"] = data["schema"]
+        if "temperature" in data:
+            args["temperature"] = data["temperature"]
+
+    if action_type in ("ai_classify",):
+        if "content" in data:
+            args["content"] = data["content"]
+        if "categories" in data:
+            args["categories"] = data["categories"]
+        if "temperature" in data:
+            args["temperature"] = data["temperature"]
+
+    if action_type in ("ai_summarize",):
+        if "content" in data:
+            args["content"] = data["content"]
+        if "system" in data:
+            args["system"] = data["system"]
+        if "temperature" in data:
+            args["temperature"] = data["temperature"]
+
+    if action_type in ("ai_decide",):
+        if "question" in data:
+            args["question"] = data["question"]
+        if "content" in data:
+            args["content"] = data["content"]
+        if "temperature" in data:
+            args["temperature"] = data["temperature"]
 
     # Generic transform actions
     if action_type in ("transform", "map_each", "filter_items"):
