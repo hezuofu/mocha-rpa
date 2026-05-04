@@ -34,6 +34,22 @@ except ImportError:
     WordPlugin = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
+# File (builtins)
+# ---------------------------------------------------------------------------
+try:
+    from mocharpa.plugins.file.plugin import FilePlugin
+except ImportError:
+    FilePlugin = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
+# Queue (builtins — sqlite3)
+# ---------------------------------------------------------------------------
+try:
+    from mocharpa.plugins.queue.plugin import QueuePlugin
+except ImportError:
+    QueuePlugin = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
 # CSV (builtins)
 # ---------------------------------------------------------------------------
 try:
@@ -57,4 +73,6 @@ __all__ = [
     "WordPlugin",
     "CSVPlugin",
     "DatabasePlugin",
+    "FilePlugin",
+    "QueuePlugin",
 ]

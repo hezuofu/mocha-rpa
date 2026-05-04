@@ -42,6 +42,7 @@ class MockNativeElement:
         "IsSelected",
         "_children",
         "_parent",
+        "_delay_fn",
     )
 
     def __init__(
@@ -55,6 +56,7 @@ class MockNativeElement:
         visible: bool = True,
         enabled: bool = True,
         selected: bool = False,
+        delay_fn: Any = None,
     ) -> None:
         self.Name = name
         self.AutomationId = automation_id
@@ -66,25 +68,36 @@ class MockNativeElement:
         self.IsSelected = selected
         self._children: List[MockNativeElement] = []
         self._parent: Optional[MockNativeElement] = None
+        self._delay_fn = delay_fn
+
+    def _delay(self) -> None:
+        if self._delay_fn:
+            time.sleep(self._delay_fn())
 
     # -- Action stubs ------------------------------------------------------
 
     def Click(self) -> None:
+        self._delay()
         logger.debug("Click: name=%r id=%r", self.Name, self.AutomationId)
 
     def DoubleClick(self) -> None:
+        self._delay()
         logger.debug("DoubleClick: name=%r id=%r", self.Name, self.AutomationId)
 
     def RightClick(self) -> None:
+        self._delay()
         logger.debug("RightClick: name=%r id=%r", self.Name, self.AutomationId)
 
     def SendKeys(self, text: str) -> None:
+        self._delay()
         logger.debug("SendKeys(%r) to name=%r", text, self.Name)
 
     def SetValue(self, value: str) -> None:
+        self._delay()
         logger.debug("SetValue(%r) on name=%r", value, self.Name)
 
     def SetFocus(self) -> None:
+        self._delay()
         logger.debug("SetFocus: name=%r", self.Name)
 
     # -- Tree helpers ------------------------------------------------------
@@ -127,10 +140,12 @@ class MockDriver(DriverAdapter):
         driver.disconnect()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, find_delay: float = 0.0, action_delay: float = 0.0) -> None:
         super().__init__()
         self._connected = False
         self._root: Optional[MockNativeElement] = None
+        self._find_delay = find_delay
+        self._action_delay = action_delay
 
     # ------------------------------------------------------------------
     # Identity / lifecycle
@@ -212,10 +227,14 @@ class MockDriver(DriverAdapter):
 
     def inject(self, element: MockNativeElement) -> MockNativeElement:
         """Add a mock element to the tree for testing."""
+        if self._action_delay > 0:
+            element._delay_fn = lambda: self._action_delay
         return self.root_native.add_child(element)
 
     def _search_one(self, locator: Locator) -> Optional[Element]:
         """Return the first matching element."""
+        if self._find_delay > 0:
+            time.sleep(self._find_delay)
         root = self._root
         if root is None:
             return None

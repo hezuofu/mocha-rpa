@@ -153,14 +153,23 @@ class AuditCollector:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _sanitize_output(output: Any) -> Any:
-        """Convert output to a JSON-serialisable value."""
+    def _sanitize_output(output: Any, max_size: int = 10_000) -> Any:
+        """Convert output to a JSON-serialisable value.
+
+        *max_size* limits the length of string representations (0 = no limit).
+        :class:`Ref` objects are represented as metadata dicts.
+        """
         if output is None:
             return None
         if isinstance(output, (str, int, float, bool)):
+            if isinstance(output, str) and max_size > 0 and len(output) > max_size:
+                return output[:max_size] + f"...<truncated {len(output) - max_size} chars>"
             return output
         if isinstance(output, (list, tuple)):
-            return [AuditCollector._sanitize_output(v) for v in output]
+            return [AuditCollector._sanitize_output(v, max_size) for v in output]
         if isinstance(output, dict):
-            return {str(k): AuditCollector._sanitize_output(v) for k, v in output.items()}
-        return str(output)
+            return {str(k): AuditCollector._sanitize_output(v, max_size) for k, v in output.items()}
+        # Handle Ref objects
+        if hasattr(output, "key") and hasattr(output, "size"):
+            return {"__ref__": getattr(output, "key", ""), "size": getattr(output, "size", 0)}
+        return str(output)[:max_size] if max_size > 0 else str(output)

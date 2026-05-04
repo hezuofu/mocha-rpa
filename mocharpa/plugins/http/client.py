@@ -53,11 +53,17 @@ class HTTPPlugin:
         default_headers: Optional[Dict[str, str]] = None,
         auth: Optional[tuple[str, str]] = None,
         timeout: float = DEFAULT_TIMEOUT,
+        retry_count: int = 0,
+        retry_backoff: float = 1.0,
+        retry_on_status: Optional[tuple[int, ...]] = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._default_headers = default_headers or {}
         self._auth = auth
         self._timeout = timeout
+        self._retry_count = retry_count
+        self._retry_backoff = retry_backoff
+        self._retry_on_status = retry_on_status or (429, 500, 502, 503, 504)
         self._session: Optional[requests.Session] = None
         self._context: Any = None
 
@@ -116,17 +122,35 @@ class HTTPPlugin:
     ) -> requests.Response:
         url = self._url(path)
         t = timeout if timeout is not None else self._timeout
-        resp = self.session.request(
-            method=method,
-            url=url,
-            params=params,
-            data=data,
-            json=json,
-            headers=headers,
-            timeout=t,
-        )
-        logger.debug("%s %s → %d (%.2fs)", method, url, resp.status_code, resp.elapsed.total_seconds())
-        return resp
+
+        last_exc: Optional[Exception] = None
+        for attempt in range(self._retry_count + 1):
+            try:
+                resp = self.session.request(
+                    method=method, url=url, params=params,
+                    data=data, json=json, headers=headers, timeout=t,
+                )
+                logger.debug("%s %s → %d (%.2fs)", method, url, resp.status_code, resp.elapsed.total_seconds())
+
+                if resp.status_code in self._retry_on_status and attempt < self._retry_count:
+                    import time as _time
+                    wait = self._retry_backoff * (2 ** attempt)
+                    logger.debug("HTTP %d — retry %d/%d after %.1fs", resp.status_code, attempt + 1, self._retry_count, wait)
+                    _time.sleep(wait)
+                    continue
+
+                return resp
+            except (requests.ConnectionError, requests.Timeout) as exc:
+                last_exc = exc
+                if attempt < self._retry_count:
+                    import time as _time
+                    wait = self._retry_backoff * (2 ** attempt)
+                    logger.debug("HTTP %s — retry %d/%d after %.1fs", type(exc).__name__, attempt + 1, self._retry_count, wait)
+                    _time.sleep(wait)
+                else:
+                    raise
+
+        raise last_exc  # type: ignore[misc]
 
     # -- convenience wrappers -------------------------------------------------
 

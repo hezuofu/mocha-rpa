@@ -255,6 +255,7 @@ class Pipeline:
                 result.elapsed = time.monotonic() - outer_start
                 if collector:
                     result.audit = collector.record  # type: ignore[attr-defined]
+                ctx.cleanup_tempdir()
                 logger.info("Pipeline '%s' finished: %s", self.name, result)
                 return result
 
@@ -277,6 +278,7 @@ class Pipeline:
             step_count=step_count,
             error_count=error_count,
         ))
+        ctx.cleanup_tempdir()
         logger.info("Pipeline '%s' finished (all retries exhausted): %s", self.name, last_result)
         return last_result  # type: ignore[return-value]
 
@@ -301,6 +303,9 @@ class Pipeline:
     ) -> PipelineContext:
         """Construct the PipelineContext for execution."""
         base = context or AutomationContext.get_current()
+        # Propagate plugin_manager from base if not explicitly overridden
+        if plugins is None and hasattr(base, '_plugin_manager'):
+            plugins = base._plugin_manager  # type: ignore[assignment]
         return PipelineContext(
             driver=driver or base.driver,
             timeout=base.timeout,

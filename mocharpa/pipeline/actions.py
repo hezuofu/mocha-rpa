@@ -556,3 +556,150 @@ def csv_append(path: Any, data: Any = None) -> Callable[[Any], Any]:
         plugin.append(resolved_path, resolved_data)
         return resolved_data
     return _action
+
+
+# ======================================================================
+# File Actions
+# ======================================================================
+
+def file_read_text(path: Any, *, encoding: Any = "utf-8") -> Callable[[Any], Any]:
+    """Read the full contents of a text file."""
+    def _action(ctx: Any) -> Any:
+        resolved_path = _resolve(ctx, path)
+        resolved_enc = _resolve(ctx, encoding)
+        plugin = ctx.plugin("file")
+        return plugin.read_text(resolved_path, encoding=resolved_enc)
+    return _action
+
+
+def file_write_text(path: Any, content: Any = None, *, encoding: Any = "utf-8") -> Callable[[Any], Any]:
+    """Write text to a file.  *content* defaults to ``ctx.previous``."""
+    def _action(ctx: Any) -> Any:
+        resolved_path = _resolve(ctx, path)
+        resolved_content = _resolve(ctx, content) if content is not None else ctx.previous
+        resolved_enc = _resolve(ctx, encoding)
+        plugin = ctx.plugin("file")
+        plugin.write_text(resolved_path, str(resolved_content), encoding=resolved_enc)
+        return resolved_path
+    return _action
+
+
+def file_copy(src: Any, dst: Any) -> Callable[[Any], Any]:
+    """Copy a file from *src* to *dst*."""
+    def _action(ctx: Any) -> Any:
+        resolved_src = _resolve(ctx, src)
+        resolved_dst = _resolve(ctx, dst)
+        plugin = ctx.plugin("file")
+        return plugin.copy(resolved_src, resolved_dst)
+    return _action
+
+
+def file_move(src: Any, dst: Any) -> Callable[[Any], Any]:
+    """Move/rename a file."""
+    def _action(ctx: Any) -> Any:
+        resolved_src = _resolve(ctx, src)
+        resolved_dst = _resolve(ctx, dst)
+        plugin = ctx.plugin("file")
+        return plugin.move(resolved_src, resolved_dst)
+    return _action
+
+
+def file_delete(path: Any) -> Callable[[Any], Any]:
+    """Delete a file or empty directory."""
+    def _action(ctx: Any) -> Any:
+        resolved_path = _resolve(ctx, path)
+        plugin = ctx.plugin("file")
+        plugin.delete(resolved_path)
+        return None
+    return _action
+
+
+def file_glob(pattern: Any, *, recursive: Any = False) -> Callable[[Any], Any]:
+    """Glob for files matching a pattern."""
+    def _action(ctx: Any) -> Any:
+        resolved_pattern = _resolve(ctx, pattern)
+        resolved_rec = _resolve(ctx, recursive)
+        plugin = ctx.plugin("file")
+        return plugin.glob(resolved_pattern, recursive=resolved_rec)
+    return _action
+
+
+def file_exists(path: Any) -> Callable[[Any], Any]:
+    """Check if a file or directory exists."""
+    def _action(ctx: Any) -> Any:
+        resolved_path = _resolve(ctx, path)
+        plugin = ctx.plugin("file")
+        return plugin.exists(resolved_path)
+    return _action
+
+
+def file_mkdir(path: Any) -> Callable[[Any], Any]:
+    """Create a directory (with parents)."""
+    def _action(ctx: Any) -> Any:
+        resolved_path = _resolve(ctx, path)
+        plugin = ctx.plugin("file")
+        return plugin.mkdir(resolved_path)
+    return _action
+
+
+# ======================================================================
+# Queue Actions
+# ======================================================================
+
+def queue_push(queue: Any, payload: Any = None, *, priority: Any = 0, delay: Any = 0) -> Callable[[Any], Any]:
+    """Enqueue a message.  *payload* defaults to ``ctx.previous``.
+
+    Returns the message ID.
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_queue = _resolve(ctx, queue)
+        resolved_payload = _resolve(ctx, payload) if payload is not None else ctx.previous
+        resolved_priority = int(_resolve(ctx, priority))
+        resolved_delay = float(_resolve(ctx, delay))
+        plugin = ctx.plugin("queue")
+        return plugin.push(resolved_queue, resolved_payload,
+                          priority=resolved_priority, delay=resolved_delay)
+    return _action
+
+
+def queue_pop(queue: Any) -> Callable[[Any], Any]:
+    """Claim the next message from a queue.
+
+    Returns ``[message_id, payload]`` or ``None``.
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_queue = _resolve(ctx, queue)
+        plugin = ctx.plugin("queue")
+        result = plugin.pop(resolved_queue)
+        return list(result) if result else None
+    return _action
+
+
+def queue_ack(msg_id: Any) -> Callable[[Any], Any]:
+    """Mark a message as processed.
+
+    *msg_id* defaults to ``ctx.previous[0]`` (the ID from a ``queue_pop`` result).
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_id = _resolve(ctx, msg_id) if msg_id is not None else (
+            ctx.previous[0] if isinstance(ctx.previous, (list, tuple)) else None
+        )
+        plugin = ctx.plugin("queue")
+        plugin.ack(int(resolved_id))
+        return None
+    return _action
+
+
+def queue_fail(msg_id: Any, error: Any = "") -> Callable[[Any], Any]:
+    """Mark a message as failed (will retry or move to dead-letter).
+
+    *msg_id* defaults to ``ctx.previous[0]``.
+    """
+    def _action(ctx: Any) -> Any:
+        resolved_id = _resolve(ctx, msg_id) if msg_id is not None else (
+            ctx.previous[0] if isinstance(ctx.previous, (list, tuple)) else None
+        )
+        resolved_error = _resolve(ctx, error) or ""
+        plugin = ctx.plugin("queue")
+        return plugin.fail(int(resolved_id), str(resolved_error))
+    return _action

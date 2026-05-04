@@ -55,6 +55,18 @@ def _get_action_registry() -> Dict[str, Callable[..., Any]]:
         "csv_read": a.csv_read,
         "csv_write": a.csv_write,
         "csv_append": a.csv_append,
+        "file_read_text": a.file_read_text,
+        "file_write_text": a.file_write_text,
+        "file_copy": a.file_copy,
+        "file_move": a.file_move,
+        "file_delete": a.file_delete,
+        "file_glob": a.file_glob,
+        "file_exists": a.file_exists,
+        "file_mkdir": a.file_mkdir,
+        "queue_push": a.queue_push,
+        "queue_pop": a.queue_pop,
+        "queue_ack": a.queue_ack,
+        "queue_fail": a.queue_fail,
     }
 
 
@@ -336,6 +348,59 @@ def _extract_action_args(action_type: str, data: dict) -> Dict[str, Any]:
     if action_type in ("csv_write",):
         if "fieldnames" in data:
             args["fieldnames"] = data["fieldnames"]
+
+    # File actions
+    if action_type in ("file_read_text",):
+        if "path" in data:
+            args["path"] = data["path"]
+        if "encoding" in data:
+            args["encoding"] = data["encoding"]
+
+    if action_type in ("file_write_text",):
+        if "path" in data:
+            args["path"] = data["path"]
+        if "content" in data:
+            args["content"] = data["content"]
+        if "encoding" in data:
+            args["encoding"] = data["encoding"]
+
+    if action_type in ("file_copy", "file_move"):
+        if "src" in data:
+            args["src"] = data["src"]
+        if "dst" in data:
+            args["dst"] = data["dst"]
+
+    if action_type in ("file_delete", "file_mkdir", "file_exists"):
+        if "path" in data:
+            args["path"] = data["path"]
+
+    if action_type in ("file_glob",):
+        if "pattern" in data:
+            args["pattern"] = data["pattern"]
+        if "recursive" in data:
+            args["recursive"] = data["recursive"]
+
+    # Queue actions
+    if action_type in ("queue_push",):
+        if "queue" in data:
+            args["queue"] = data["queue"]
+        if "payload" in data:
+            args["payload"] = data["payload"]
+        if "priority" in data:
+            args["priority"] = data["priority"]
+        if "delay" in data:
+            args["delay"] = data["delay"]
+
+    if action_type in ("queue_pop",):
+        if "queue" in data:
+            args["queue"] = data["queue"]
+
+    if action_type in ("queue_ack", "queue_fail"):
+        if "msg_id" in data:
+            args["msg_id"] = data["msg_id"]
+    if action_type in ("queue_fail",):
+        if "error" in data:
+            args["error"] = data["error"]
 
     # Generic transform actions
     if action_type in ("transform", "map_each", "filter_items"):
