@@ -1,0 +1,65 @@
+# Mocharpa RPA 示例管道
+# 运行: mocharpa run examples/example_pipeline.yaml
+
+pipeline:
+  name: example_pipeline
+  steps:
+    # ---- UI 自动化 ----
+    - name: wait_for_page
+      action: wait_for
+      locator: "name:MainContent"
+      timeout: 10
+
+    - name: click_login
+      action: find_click
+      locator: "name:LoginButton"
+
+    - name: enter_username
+      action: send_keys
+      locator: "name:Username"
+      text: "${data.user}"
+
+    # ---- HTTP 请求 ----
+    - name: fetch_api_data
+      action: http_get
+      url: "${data.api_url}/status"
+
+    - name: post_result
+      action: http_post
+      url: "${data.api_url}/report"
+      body: "${previous}"
+
+    # ---- 条件分支 ----
+    - name: handle_response
+      action: if
+      condition:
+        eq: ["${data.env}", "prod"]
+      then:
+        - action: http_post
+          name: notify_prod
+          url: "https://hooks.slack.com/alert"
+      else:
+        - action: transform
+          name: log_dev
+          fn: identity
+
+    # ---- 循环 ----
+    - name: process_items
+      action: for_each
+      items: "${previous}"
+      steps:
+        - name: process_single
+          action: transform
+          fn: identity
+
+    # ---- 数据库 ----
+    - name: save_results
+      action: db_insert
+      table: "pipeline_results"
+      data: "${previous}"
+
+    # ---- CSV 导出 ----
+    - name: export_csv
+      action: csv_write
+      path: "${data.output_dir}/results.csv"
+      data: "${previous}"

@@ -6,7 +6,7 @@ with the framework's plugin lifecycle.
 Usage::
 
     from mocharpa.plugins.word.plugin import WordPlugin
-    from mocharpa.plugin.base import PluginManager
+    from mocharpa.plugins.base import PluginManager
 
     mgr = PluginManager(context)
     word = WordPlugin()
@@ -30,7 +30,7 @@ from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.table import Table as DocxTable
 
-from mocharpa.plugin.base import Plugin
+from mocharpa.plugins.base import Plugin
 
 logger = logging.getLogger("rpa.word")
 

@@ -15,9 +15,17 @@ from typing import Any, Callable, Dict, List, Optional
 
 from mocharpa.core.context import AutomationContext
 from mocharpa.core.driver import DriverAdapter
-from mocharpa.plugin.base import PluginManager
+from mocharpa.plugins.base import PluginManager
 from mocharpa.pipeline.context import PipelineContext
 from mocharpa.pipeline.step import Step, StepResult
+from mocharpa.events import (
+    PipelineStartEvent,
+    PipelineEndEvent,
+    StepStartEvent,
+    StepEndEvent,
+    StepSkippedEvent,
+    StepErrorEvent,
+)
 
 logger = logging.getLogger("rpa.pipeline")
 
@@ -46,6 +54,7 @@ class PipelineResult:
     errors: Dict[str, str] = field(default_factory=dict)
     skipped: List[str] = field(default_factory=list)
     elapsed: float = 0.0
+    audit: Any = None
 
     def __repr__(self) -> str:
         status = "OK" if self.success else "FAILED"
@@ -136,6 +145,9 @@ class Pipeline:
         context: Optional[AutomationContext] = None,
         driver: Optional[DriverAdapter] = None,
         plugins: Optional[PluginManager] = None,
+        retry_count: int = 0,
+        retry_delay: float = 1.0,
+        audit: bool = False,
     ) -> PipelineResult:
         """Execute all steps in order.
 
@@ -144,47 +156,129 @@ class Pipeline:
             context: Optional existing :class:`AutomationContext` to extend.
             driver: Driver to bind (creates one if context has none).
             plugins: Plugin manager to bind.
+            retry_count: Number of times to retry the entire pipeline on failure.
+            retry_delay: Seconds between pipeline-level retries.
+            audit: If True, attach an :class:`AuditCollector` to the context
+                and return the audit record via ``PipelineResult.audit``.
 
         Returns:
             :class:`PipelineResult` with per-step outputs and diagnostics.
         """
-        start = time.monotonic()
+        from mocharpa.pipeline.audit import AuditCollector
 
-        # Build PipelineContext
-        ctx = self._build_context(data=data, context=context, driver=driver, plugins=plugins)
+        outer_start = time.monotonic()
+        collector = AuditCollector(pipeline_name=self.name, input_data=data) if audit else None
 
-        result = PipelineResult(name=self.name, success=True)
+        attempts = retry_count + 1
+        last_result: Optional[PipelineResult] = None
 
-        for step in self._steps:
-            logger.info("Running step: %s", step.name)
-            try:
-                sr: StepResult = step.execute(ctx)
-                if sr.skipped:
-                    result.skipped.append(step.name)
-                    logger.info("Skipped step: %s", step.name)
-                    continue
+        for attempt in range(attempts):
+            if collector:
+                collector.start()
+            else:
+                pass
 
-                if sr.error is not None:
-                    result.errors[step.name] = sr.error
+            ctx = self._build_context(data=data, context=context, driver=driver, plugins=plugins)
+            if collector:
+                ctx._audit_collector = collector
+
+            bus = ctx.event_bus
+
+            bus.emit(PipelineStartEvent(pipeline_name=self.name, data=data or {}))
+
+            result = PipelineResult(name=self.name, success=True)
+
+            for step in self._steps:
+                logger.info("Running step: %s", step.name)
+                bus.emit(StepStartEvent(step_name=step.name))
+                try:
+                    sr: StepResult = step.execute(ctx)
+                    if sr.skipped:
+                        result.skipped.append(step.name)
+                        logger.info("Skipped step: %s", step.name)
+                        bus.emit(StepSkippedEvent(step_name=step.name))
+                        if collector:
+                            collector.record_skipped(step.name)
+                        continue
+
+                    if sr.error is not None:
+                        result.errors[step.name] = sr.error
+                        result.success = False
+                        logger.warning(
+                            "Step '%s' failed (continue_on_error): %s",
+                            step.name,
+                            sr.error,
+                        )
+                        bus.emit(StepErrorEvent(
+                            step_name=step.name, error=sr.error,
+                            elapsed=sr.elapsed, unhandled=False,
+                        ))
+                        if collector:
+                            collector.record_error(step.name, sr.error, sr.elapsed)
+                    else:
+                        ctx.record_step(step.name, sr.output)
+                        result.step_results[step.name] = sr.output
+                        bus.emit(StepEndEvent(
+                            step_name=step.name, output=sr.output,
+                            elapsed=sr.elapsed,
+                        ))
+                        if collector:
+                            collector.record_ok(step.name, sr.output, sr.elapsed)
+
+                except Exception as exc:
+                    logger.exception("Step '%s' raised unhandled exception", step.name)
+                    result.errors[step.name] = str(exc)
                     result.success = False
-                    logger.warning(
-                        "Step '%s' failed (continue_on_error): %s",
-                        step.name,
-                        sr.error,
-                    )
-                else:
-                    ctx.record_step(step.name, sr.output)
-                    result.step_results[step.name] = sr.output
+                    bus.emit(StepErrorEvent(
+                        step_name=step.name, error=str(exc),
+                        elapsed=time.monotonic() - outer_start, unhandled=True,
+                    ))
+                    if collector:
+                        collector.record_exception(step.name, str(exc), time.monotonic() - outer_start)
+                    break
 
-            except Exception as exc:
-                logger.exception("Step '%s' raised unhandled exception", step.name)
-                result.errors[step.name] = str(exc)
-                result.success = False
-                break
+            if collector:
+                collector.finish(result.success)
 
-        result.elapsed = time.monotonic() - start
-        logger.info("Pipeline '%s' finished: %s", self.name, result)
-        return result
+            error_count = len(result.errors)
+            step_count = len(result.step_results)
+
+            bus.emit(PipelineEndEvent(
+                pipeline_name=self.name,
+                success=result.success,
+                elapsed=time.monotonic() - outer_start,
+                step_count=step_count,
+                error_count=error_count,
+            ))
+
+            if result.success:
+                result.elapsed = time.monotonic() - outer_start
+                if collector:
+                    result.audit = collector.record  # type: ignore[attr-defined]
+                logger.info("Pipeline '%s' finished: %s", self.name, result)
+                return result
+
+            last_result = result
+            if attempt < attempts - 1:
+                logger.info("Pipeline '%s' retrying (attempt %d/%d)...", self.name, attempt + 1, attempts)
+                time.sleep(retry_delay)
+
+        # All attempts exhausted
+        last_result.elapsed = time.monotonic() - outer_start  # type: ignore[union-attr]
+        if collector:
+            collector.finish(False)
+            last_result.audit = collector.record  # type: ignore[attr-defined, union-attr]
+        error_count = len(last_result.errors)  # type: ignore[union-attr]
+        step_count = len(last_result.step_results)  # type: ignore[union-attr]
+        bus.emit(PipelineEndEvent(
+            pipeline_name=self.name,
+            success=False,
+            elapsed=last_result.elapsed,  # type: ignore[union-attr]
+            step_count=step_count,
+            error_count=error_count,
+        ))
+        logger.info("Pipeline '%s' finished (all retries exhausted): %s", self.name, last_result)
+        return last_result  # type: ignore[return-value]
 
     def __call__(
         self,
@@ -215,6 +309,7 @@ class Pipeline:
             retry_delay=base.retry_delay,
             data=data,
             plugin_manager=plugins,
+            event_bus=base.event_bus,
         )
 
     # ------------------------------------------------------------------
@@ -249,6 +344,33 @@ class Pipeline:
         # Note: action callables cannot be deserialized —
         # use from_yaml() + loader for full round-trip.
         return pl
+
+    @staticmethod
+    def from_yaml(yaml_str: str) -> Pipeline:
+        """Parse a YAML string into a :class:`Pipeline`.
+
+        Requires ``pyyaml``.  Thin wrapper around :func:`mocharpa.pipeline.loader.load_yaml`.
+        """
+        from mocharpa.pipeline.loader import load_yaml
+        return load_yaml(yaml_str)
+
+    @staticmethod
+    def from_yaml_file(path) -> Pipeline:
+        """Load a pipeline from a ``.yaml`` / ``.yml`` file."""
+        from mocharpa.pipeline.loader import load_yaml_file
+        return load_yaml_file(path)
+
+    @staticmethod
+    def from_json(json_str: str) -> Pipeline:
+        """Parse a JSON string into a :class:`Pipeline`."""
+        from mocharpa.pipeline.loader import load_json
+        return load_json(json_str)
+
+    @staticmethod
+    def from_json_file(path) -> Pipeline:
+        """Load a pipeline from a ``.json`` file."""
+        from mocharpa.pipeline.loader import load_json_file
+        return load_json_file(path)
 
     # ------------------------------------------------------------------
     # Representation

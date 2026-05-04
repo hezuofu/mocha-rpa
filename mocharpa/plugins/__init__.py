@@ -1,18 +1,13 @@
-"""Plugin exports for the RPA framework.
+"""Plugin system for the RPA framework.
 
-All plugin classes are conditionally exported — import errors are silently
-suppressed when optional dependencies are not installed.
+Re-exports the :class:`Plugin` protocol and :class:`PluginManager` from
+:mod:`mocharpa.plugins.base`, together with all built-in plugin classes
+(conditionally imported so that missing optional dependencies are silent).
 """
 
 from __future__ import annotations
 
-# ---------------------------------------------------------------------------
-# Browser (Playwright)
-# ---------------------------------------------------------------------------
-try:
-    from mocharpa.plugins.browser.driver import PlaywrightDriver
-except ImportError:
-    PlaywrightDriver = None  # type: ignore[assignment]
+from mocharpa.plugins.base import Plugin, PluginManager
 
 # ---------------------------------------------------------------------------
 # HTTP (requests)
@@ -39,6 +34,14 @@ except ImportError:
     WordPlugin = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
+# CSV (builtins)
+# ---------------------------------------------------------------------------
+try:
+    from mocharpa.plugins.csv.plugin import CSVPlugin
+except ImportError:
+    CSVPlugin = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
 # Database (sqlalchemy)
 # ---------------------------------------------------------------------------
 try:
@@ -47,9 +50,11 @@ except ImportError:
     DatabasePlugin = None  # type: ignore[assignment]
 
 __all__ = [
-    "PlaywrightDriver",
+    "Plugin",
+    "PluginManager",
     "HTTPPlugin",
     "ExcelPlugin",
     "WordPlugin",
+    "CSVPlugin",
     "DatabasePlugin",
 ]

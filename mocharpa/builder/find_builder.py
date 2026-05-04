@@ -25,6 +25,7 @@ from mocharpa.core.element import Element, Rectangle
 from mocharpa.core.exceptions import ElementNotFound, ActionNotPossible, TimeoutError
 from mocharpa.core.context import AutomationContext
 from mocharpa.core.driver import DriverAdapter, DriverNotConnectedError
+from mocharpa.events import ElementFoundEvent, ElementNotFoundEvent
 
 
 class FindBuilder:
@@ -208,6 +209,10 @@ class FindBuilder:
         ctx.trigger_hook("pre_find", locator=locator, timeout=timeout)
         result = driver.find_element(locator, timeout=timeout)
         ctx.trigger_hook("post_find", locator=locator, element=result)
+        if result is not None:
+            ctx.event_bus.emit(ElementFoundEvent(locator=locator, element=result, timeout=timeout))
+        else:
+            ctx.event_bus.emit(ElementNotFoundEvent(locator=locator, timeout=timeout))
         return result
 
     def get_all(self) -> List[Element]:

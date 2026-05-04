@@ -6,7 +6,7 @@ framework's plugin lifecycle.
 Usage::
 
     from mocharpa.plugins.excel.plugin import ExcelPlugin
-    from mocharpa.plugin.base import PluginManager
+    from mocharpa.plugins.base import PluginManager
 
     mgr = PluginManager(context)
     excel = ExcelPlugin()
@@ -29,7 +29,7 @@ import openpyxl
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-from mocharpa.plugin.base import Plugin
+from mocharpa.plugins.base import Plugin
 
 logger = logging.getLogger("rpa.excel")
 

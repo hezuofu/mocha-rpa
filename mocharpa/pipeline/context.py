@@ -36,7 +36,7 @@ class PipelineContext(AutomationContext):
             return token
     """
 
-    __slots__ = ("data", "previous", "step_results", "_plugin_manager")
+    __slots__ = ("data", "previous", "step_results", "_plugin_manager", "_audit_collector")
 
     # Reserved variable prefixes for resolve()
     _RESOLVE_RE = re.compile(r"\$\{(\w+(?:\.\w+)*)\}")
@@ -108,19 +108,22 @@ class PipelineContext(AutomationContext):
 
         if root == "previous":
             target = self.previous
+            keys = parts[1:]
         elif root == "data":
             target = self.data
+            keys = parts[1:]
         elif root == "env":
             import os
             target = dict(os.environ)
+            keys = parts[1:]
         elif root in self.step_results:
             target = self.step_results[root]
+            keys = parts[1:]
         else:
-            # Fallback: try data dict
+            # Fallback: treat full path as keys into data dict
             target = self.data
+            keys = parts
 
-        # Traverse nested keys
-        keys = parts[1:] if root in ("data", "env", "previous") else parts[1:]
         for key in keys:
             if isinstance(target, dict):
                 target = target.get(key)

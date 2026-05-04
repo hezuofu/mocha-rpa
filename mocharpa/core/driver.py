@@ -26,7 +26,16 @@ class DriverAdapter(ABC):
         driver.disconnect()
 
     Subclasses must implement all abstract methods.
+
+    Event integration:
+        When a driver is bound to an :class:`AutomationContext`, its
+        ``_event_bus`` attribute is set automatically.  Drivers should
+        call :meth:`_emit` after ``connect()`` and before ``disconnect()``
+        to fire :class:`DriverConnectEvent` / :class:`DriverDisconnectEvent`.
     """
+
+    def __init__(self) -> None:
+        self._event_bus: Any = None
 
     # ------------------------------------------------------------------
     # Identity
@@ -53,6 +62,15 @@ class DriverAdapter(ABC):
     @abstractmethod
     def is_connected(self) -> bool:
         """Return True if the driver is currently connected."""
+
+    # ------------------------------------------------------------------
+    # Event helpers
+    # ------------------------------------------------------------------
+
+    def _emit(self, event: Any) -> None:
+        """Emit an event through the bound event bus (no-op if none)."""
+        if self._event_bus is not None:
+            self._event_bus.emit(event)
 
     # ------------------------------------------------------------------
     # Element discovery

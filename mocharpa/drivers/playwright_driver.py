@@ -1,6 +1,6 @@
 """Playwright-based browser driver for the RPA framework.
 
-Implements :class:`~rpa.core.driver.DriverAdapter` using Playwright as the
+Implements :class:`~mocharpa.core.driver.DriverAdapter` using Playwright as the
 automation backend.  Supports Chromium (default), Firefox, and WebKit.
 
 Usage::
@@ -15,8 +15,7 @@ Usage::
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any, List, Optional, Union
+from typing import Any, List, Literal, Optional
 
 from playwright.sync_api import (
     Browser,
@@ -45,8 +44,7 @@ from mocharpa.core.exceptions import (
 
 logger = logging.getLogger("rpa.browser")
 
-# Supported browser types
-BrowserType = Union["chromium", "firefox", "webkit"]
+BrowserType = Literal["chromium", "firefox", "webkit"]
 
 
 # ======================================================================
@@ -199,10 +197,11 @@ class PlaywrightDriver(DriverAdapter):
         self,
         *,
         headless: bool = True,
-        browser_type: str = "chromium",
+        browser_type: BrowserType = "chromium",
         viewport: Optional[dict] = None,
         user_data_dir: Optional[str] = None,
     ) -> None:
+        super().__init__()
         self._headless = headless
         self._browser_type = browser_type
         self._viewport = viewport or {"width": 1280, "height": 720}
@@ -242,7 +241,13 @@ class PlaywrightDriver(DriverAdapter):
             self._context = self._browser.new_context(viewport=self._viewport)
             self._page = self._context.new_page()
 
+        from mocharpa.events import DriverConnectEvent
+        self._emit(DriverConnectEvent(driver_name=self.name))
+
     def disconnect(self) -> None:
+        from mocharpa.events import DriverDisconnectEvent
+        self._emit(DriverDisconnectEvent(driver_name=self.name))
+
         if self._context:
             self._context.close()
         if self._browser:
@@ -320,9 +325,7 @@ class PlaywrightDriver(DriverAdapter):
         selector = _locator_to_selector(locator)
         try:
             pw_loc = self._page.locator(selector)
-            count = pw_loc.count()
-            if count == 0:
-                return None
+            pw_loc.first.wait_for(state="attached", timeout=timeout * 1000)
             native = _PlaywrightNative(pw_loc, self._page)
             return Element(native, locator=locator)
         except PlaywrightTimeout:
@@ -340,6 +343,7 @@ class PlaywrightDriver(DriverAdapter):
         selector = _locator_to_selector(locator)
         try:
             pw_loc = self._page.locator(selector)
+            pw_loc.first.wait_for(state="attached", timeout=timeout * 1000)
             count = pw_loc.count()
             results: List[Element] = []
             for i in range(count):

@@ -126,6 +126,7 @@ class AutomationContext:
         retry_count: int = 3,
         retry_delay: float = 0.5,
         driver: Optional[DriverAdapter] = None,
+        event_bus: Any = None,
     ) -> None:
         self.timeout: float = timeout
         self.log_level: str = log_level
@@ -136,6 +137,11 @@ class AutomationContext:
         self._hooks = HookRegistry()
         self._cache = _Cache()
         self._overrides: Dict[str, Any] = {}
+
+        from mocharpa.events import EventBus
+        self.event_bus: EventBus = event_bus if event_bus is not None else EventBus()
+        if driver is not None:
+            driver._event_bus = self.event_bus
 
         self._configure_logging()
 

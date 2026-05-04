@@ -6,7 +6,7 @@ plugin lifecycle and context caching.
 Usage::
 
     from mocharpa.plugins.http.client import HTTPPlugin
-    from mocharpa.plugin.base import PluginManager
+    from mocharpa.plugins.base import PluginManager
 
     mgr = PluginManager(context)
     http = HTTPPlugin(base_url="https://api.example.com", default_headers={"Authorization": "Bearer ..."})
@@ -26,7 +26,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from mocharpa.plugin.base import Plugin
+from mocharpa.plugins.base import Plugin
 
 logger = logging.getLogger("rpa.http")
 

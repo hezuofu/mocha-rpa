@@ -1,0 +1,9 @@
+# 最简示例 — 演示纯 transform 管道
+# 运行: mocharpa run examples/example_simple.yaml --data name=World
+
+pipeline:
+  name: hello_pipeline
+  steps:
+    - name: greet
+      action: transform
+      fn: identity

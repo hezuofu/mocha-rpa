@@ -128,6 +128,7 @@ class MockDriver(DriverAdapter):
     """
 
     def __init__(self) -> None:
+        super().__init__()
         self._connected = False
         self._root: Optional[MockNativeElement] = None
 
@@ -147,9 +148,13 @@ class MockDriver(DriverAdapter):
             control_type="Pane",
             rect=Rectangle(0, 0, 1920, 1080),
         )
+        from mocharpa.events import DriverConnectEvent
+        self._emit(DriverConnectEvent(driver_name=self.name))
         logger.info("MockDriver connected")
 
     def disconnect(self) -> None:
+        from mocharpa.events import DriverDisconnectEvent
+        self._emit(DriverDisconnectEvent(driver_name=self.name))
         self._connected = False
         self._root = None
         logger.info("MockDriver disconnected")

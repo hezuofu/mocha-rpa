@@ -90,52 +90,59 @@ def async_retry(
 class AsyncFindBuilder:
     """Async wrapper around :class:`FindBuilder`.
 
-    Each terminal method delegates the underlying blocking operation to
-    a thread pool, returning an awaitable.
+    Builder methods (``name()``, ``id()``, ``within()``, etc.) are
+    transparently delegated to the underlying sync :class:`FindBuilder`,
+    with return values automatically wrapped as new :class:`AsyncFindBuilder`
+    instances.
+
+    Terminal operations are exposed as ``*_async`` coroutines that run the
+    blocking work in a thread pool.
 
     Usage::
 
         async def login():
-            builder = AsyncFind(AsyncFindBuilder())
+            builder = AsyncFind()
             await builder.name("Username").do_async(lambda e: e.send_keys("user"))
     """
 
     __slots__ = ("_sync_builder",)
 
+    # Methods that should NOT be delegated to the sync builder
+    _TERMINAL_SYNC = frozenset({"do", "get", "get_all", "wait_until", "exists", "describe"})
+
     def __init__(self, sync_builder: Optional[FindBuilder] = None) -> None:
         self._sync_builder = sync_builder or FindBuilder()
 
-    # -- locator building (synchronous, returns new AsyncFindBuilder) ------
+    # -- proxy builder methods to sync FindBuilder ------------------------
+
+    def __getattr__(self, name: str):
+        """Delegate builder methods to the sync FindBuilder, auto-wrapping
+        FindBuilder return values as AsyncFindBuilder."""
+        if name in self._TERMINAL_SYNC:
+            raise AttributeError(
+                f"AsyncFindBuilder has no sync method '{name}'. "
+                f"Use '{name}_async' instead."
+            )
+
+        attr = getattr(self._sync_builder, name)
+
+        if callable(attr):
+            def _wrap(*args: Any, **kwargs: Any) -> AsyncFindBuilder:
+                result = attr(*args, **kwargs)
+                if isinstance(result, FindBuilder):
+                    return self._clone(result)
+                return result
+            return _wrap
+
+        # Non-callable (e.g. property like 'then')
+        if isinstance(attr, FindBuilder):
+            return self._clone(attr)
+        return attr
 
     def _clone(self, sync: FindBuilder) -> AsyncFindBuilder:
         inst = AsyncFindBuilder()
         inst._sync_builder = sync
         return inst
-
-    def name(self, value: str, exact: bool = True) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.name(value, exact))
-
-    def id(self, value: str) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.id(value))
-
-    def type(self, value: str) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.type(value))
-
-    def class_name(self, value: str) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.class_name(value))
-
-    def within(self, timeout: float) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.within(timeout))
-
-    def with_context(self, context: AutomationContext) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.with_context(context))
-
-    def all(self) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.all())
-
-    @property
-    def then(self) -> AsyncFindBuilder:
-        return self._clone(self._sync_builder.then)
 
     # -- async terminal operations ----------------------------------------
 

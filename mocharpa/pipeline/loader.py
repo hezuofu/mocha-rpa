@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from mocharpa.pipeline.pipeline import Pipeline
+from mocharpa.core.exceptions import TimeoutError
 
 
 # ======================================================================
@@ -31,14 +32,29 @@ def _get_action_registry() -> Dict[str, Callable[..., Any]]:
         "wait_for": a.wait_for,
         "http_get": a.http_get,
         "http_post": a.http_post,
+        "http_put": a.http_put,
+        "http_patch": a.http_patch,
+        "http_delete": a.http_delete,
         "db_insert": a.db_insert,
         "db_query": a.db_query,
         "db_execute": a.db_execute,
         "excel_read": a.excel_read,
         "excel_write": a.excel_write,
+        "word_open": a.word_open,
+        "word_add_paragraph": a.word_add_paragraph,
+        "word_add_heading": a.word_add_heading,
+        "word_get_text": a.word_get_text,
+        "word_find_replace": a.word_find_replace,
+        "word_add_table": a.word_add_table,
+        "word_add_picture": a.word_add_picture,
+        "word_save": a.word_save,
+        "word_close": a.word_close,
         "map_each": a.map_each,
         "filter_items": a.filter_items,
         "transform": a.transform,
+        "csv_read": a.csv_read,
+        "csv_write": a.csv_write,
+        "csv_append": a.csv_append,
     }
 
 
@@ -150,7 +166,7 @@ def _build_action(action_type: str, data: dict) -> Callable[[Any], Any]:
         sub_steps = data.get("steps", [])
         return _sequence_action(sub_steps)
 
-    if action_type in ("if", "switch", "for_each"):
+    if action_type in ("if", "switch", "for_each", "while_", "until_", "repeat"):
         return _build_flow_control(action_type, data)
 
     # Standard action from registry
@@ -161,10 +177,20 @@ def _build_action(action_type: str, data: dict) -> Callable[[Any], Any]:
         )
 
     # transform/map_each/filter_items require a callable 'fn' —
-    # YAML can't serialize callables; provide identity default.
+    # YAML can't serialize callables.  Recognised string aliases:
+    #   "identity"  →  lambda x: x
+    #   builtin name (str, int, len, ...) → builtin
     if action_type in ("map_each", "filter_items", "transform"):
-        if "fn" not in data:
+        fn_raw = data.get("fn")
+        if fn_raw is None:
             return lambda ctx: ctx.previous
+        if isinstance(fn_raw, str):
+            if fn_raw == "identity":
+                data["fn"] = lambda x: x
+            else:
+                import builtins
+                if hasattr(builtins, fn_raw):
+                    data["fn"] = getattr(builtins, fn_raw)
 
     factory = registry[action_type]
     args = _extract_action_args(action_type, data)
@@ -205,11 +231,17 @@ def _extract_action_args(action_type: str, data: dict) -> Dict[str, Any]:
         if "headers" in data:
             args["headers"] = data["headers"]
 
-    if action_type in ("http_post",):
+    if action_type in ("http_post", "http_put", "http_patch"):
         if "url" in data:
             args["url"] = data["url"]
         if "body" in data:
             args["data"] = data["body"]
+        if "headers" in data:
+            args["headers"] = data["headers"]
+
+    if action_type in ("http_delete",):
+        if "url" in data:
+            args["url"] = data["url"]
         if "headers" in data:
             args["headers"] = data["headers"]
 
@@ -223,6 +255,10 @@ def _extract_action_args(action_type: str, data: dict) -> Dict[str, Any]:
     if action_type in ("db_query",):
         if "sql" in data:
             args["sql"] = data["sql"]
+        if "table" in data:
+            args["table"] = data["table"]
+        if "filters" in data:
+            args.update(data["filters"])
 
     if action_type in ("db_execute",):
         if "sql" in data:
@@ -234,9 +270,77 @@ def _extract_action_args(action_type: str, data: dict) -> Dict[str, Any]:
             args["path"] = data["path"]
         if "cell" in data:
             args["cell"] = data["cell"]
+        if "sheet" in data:
+            args["sheet"] = data["sheet"]
     if action_type in ("excel_write",):
         if "value" in data:
             args["value"] = data["value"]
+
+    # Word actions
+    if action_type.startswith("word_"):
+        if "path" in data:
+            args["path"] = data["path"]
+
+    if action_type in ("word_add_paragraph", "word_add_heading", "word_get_text"):
+        if "text" in data:
+            args["text"] = data["text"]
+
+    if action_type in ("word_add_paragraph",):
+        if "style" in data:
+            args["style"] = data["style"]
+
+    if action_type in ("word_add_heading",):
+        if "level" in data:
+            args["level"] = data["level"]
+
+    if action_type in ("word_find_replace",):
+        if "old" in data:
+            args["old"] = data["old"]
+        if "new" in data:
+            args["new"] = data["new"]
+
+    if action_type in ("word_add_table",):
+        if "rows" in data:
+            args["rows"] = data["rows"]
+        if "cols" in data:
+            args["cols"] = data["cols"]
+        if "data" in data:
+            args["data"] = data["data"]
+
+    if action_type in ("word_add_picture",):
+        if "image_path" in data:
+            args["image_path"] = data["image_path"]
+        if "width" in data:
+            args["width"] = data["width"]
+
+    if action_type in ("word_save",):
+        if "target" in data:
+            args["target"] = data["target"]
+
+    if action_type in ("word_close",):
+        if "save" in data:
+            args["save"] = data["save"]
+
+    # CSV actions
+    if action_type in ("csv_read",):
+        if "path" in data:
+            args["path"] = data["path"]
+        if "as_dicts" in data:
+            args["as_dicts"] = data["as_dicts"]
+
+    if action_type in ("csv_write", "csv_append"):
+        if "path" in data:
+            args["path"] = data["path"]
+        if "data" in data:
+            args["data"] = data["data"]
+    if action_type in ("csv_write",):
+        if "fieldnames" in data:
+            args["fieldnames"] = data["fieldnames"]
+
+    # Generic transform actions
+    if action_type in ("transform", "map_each", "filter_items"):
+        if "fn" in data:
+            args["fn"] = data["fn"]
 
     return args
 
@@ -307,25 +411,200 @@ def _build_flow_control(flow_type: str, data: dict) -> Callable[[Any], Any]:
             return results
         return _action
 
+    if flow_type == "while_":
+        condition = _parse_condition(data.get("condition", False))
+        steps = data.get("steps", [])
+        max_iterations = data.get("max_iterations", None)
+        timeout = data.get("timeout", None)
+        seq = _sequence_action(steps) if steps else lambda ctx: None
+
+        def _action(ctx: Any) -> Any:
+            import time as _time
+            check = condition() if callable(condition) else bool(condition)
+            deadline = _time.monotonic() + timeout if timeout else None
+            iteration = 0
+            while check:
+                if max_iterations is not None and iteration >= max_iterations:
+                    break
+                if deadline is not None and _time.monotonic() > deadline:
+                    raise TimeoutError(f"while_ loop timed out after {timeout}s")
+                seq(ctx)
+                iteration += 1
+                check = condition() if callable(condition) else bool(condition)
+            return None
+        return _action
+
+    if flow_type == "until_":
+        condition = _parse_condition(data.get("condition", True))
+        steps = data.get("steps", [])
+        max_iterations = data.get("max_iterations", None)
+        interval = data.get("interval", 0.0)
+        seq = _sequence_action(steps) if steps else lambda ctx: None
+
+        def _action(ctx: Any) -> Any:
+            import time as _time
+            iteration = 0
+            while True:
+                seq(ctx)
+                iteration += 1
+                if max_iterations is not None and iteration >= max_iterations:
+                    break
+                check = condition() if callable(condition) else bool(condition)
+                if check:
+                    break
+                if interval > 0:
+                    _time.sleep(interval)
+            return None
+        return _action
+
+    if flow_type == "repeat":
+        count = int(data.get("count", 1))
+        steps = data.get("steps", [])
+        seq = _sequence_action(steps) if steps else lambda ctx: None
+
+        def _action(ctx: Any) -> Any:
+            results = []
+            for i in range(count):
+                ctx.previous = i
+                results.append(seq(ctx))
+            return results
+        return _action
+
     raise ValueError(f"Unknown flow-control type: {flow_type}")
 
 
 def _parse_condition(raw: Any) -> Any:
-    """Best-effort condition parser.  Returns a callable or a bare value.
+    """Parse a condition expression into a callable ``(ctx) -> bool``.
 
-    Currently supports:
+    Supports:
         - ``bool`` → as-is
-        - ``str`` like ``"${data.has_data}"`` → resolved at runtime
+        - ``str`` → ``"${data.key}"`` style resolved at runtime
+        - ``dict`` → complex expressions:
+          ``{"exists": {"name": "Popup"}}``
+          ``{"eq": ["${data.status}", "ok"]}``
+          ``{"and": [cond1, cond2]}``
+          ``{"or": [...]}``
+          ``{"not": cond}``
+          ``{"gt": [left, right]}``
+          ``{"lt": [left, right]}``
+          ``{"contains": [value, item]}``
     """
     if isinstance(raw, bool):
         return raw
+
     if isinstance(raw, str):
-        # Deferred resolution via PipelineContext.resolve
         def _cond(ctx: Any) -> bool:
             resolved = ctx.resolve(raw) if hasattr(ctx, "resolve") else raw
             return bool(resolved)
         return _cond
+
+    if isinstance(raw, dict):
+        return _parse_dict_condition(raw)
+
     return raw
+
+
+def _parse_dict_condition(data: dict) -> Callable[[Any], bool]:
+    """Parse a dict-based condition expression."""
+    if not data:
+        return lambda ctx: False
+
+    op = next(iter(data))
+
+    if op == "and":
+        subs = [_parse_condition(item) for item in data["and"]]
+        def _and(ctx: Any) -> bool:
+            for sub in subs:
+                check = sub(ctx) if callable(sub) else bool(sub)
+                if not check:
+                    return False
+            return True
+        return _and
+
+    if op == "or":
+        subs = [_parse_condition(item) for item in data["or"]]
+        def _or(ctx: Any) -> bool:
+            for sub in subs:
+                check = sub(ctx) if callable(sub) else bool(sub)
+                if check:
+                    return True
+            return False
+        return _or
+
+    if op == "not":
+        sub = _parse_condition(data["not"])
+        def _not(ctx: Any) -> bool:
+            check = sub(ctx) if callable(sub) else bool(sub)
+            return not check
+        return _not
+
+    # Element conditions
+    if op == "exists":
+        from mocharpa.builder.find_builder import FindBuilder
+        from mocharpa.core.locator import LocatorFactory
+        loc = LocatorFactory.create(data["exists"])
+        def _exists(ctx: Any) -> bool:
+            fb = FindBuilder((loc,))
+            if hasattr(ctx, "driver") and ctx.driver:
+                fb = fb.with_context(ctx)
+            return fb.exists()
+        return _exists
+
+    if op == "not_exists":
+        sub = _parse_dict_condition({"exists": data["not_exists"]})
+        def _not_exists(ctx: Any) -> bool:
+            return not sub(ctx)
+        return _not_exists
+
+    if op == "visible":
+        from mocharpa.builder.find_builder import FindBuilder
+        from mocharpa.core.locator import LocatorFactory
+        loc = LocatorFactory.create(data["visible"])
+        def _visible(ctx: Any) -> bool:
+            fb = FindBuilder((loc,))
+            if hasattr(ctx, "driver") and ctx.driver:
+                fb = fb.with_context(ctx)
+            el = fb.get()
+            return el is not None and el.is_visible()
+        return _visible
+
+    if op == "enabled":
+        from mocharpa.builder.find_builder import FindBuilder
+        from mocharpa.core.locator import LocatorFactory
+        loc = LocatorFactory.create(data["enabled"])
+        def _enabled(ctx: Any) -> bool:
+            fb = FindBuilder((loc,))
+            if hasattr(ctx, "driver") and ctx.driver:
+                fb = fb.with_context(ctx)
+            el = fb.get()
+            return el is not None and el.is_enabled()
+        return _enabled
+
+    # Value comparisons — expect [left, right]
+    if op in ("eq", "neq", "gt", "lt", "contains"):
+        pair = data[op]
+        if not isinstance(pair, list) or len(pair) != 2:
+            raise ValueError(f"'{op}' condition expects a list of [left, right], got: {pair}")
+        left, right = pair
+
+        def _resolve_side(ctx: Any, side: Any) -> Any:
+            if isinstance(side, str) and hasattr(ctx, "resolve"):
+                return ctx.resolve(side)
+            return side
+
+        if op == "eq":
+            return lambda ctx: _resolve_side(ctx, left) == _resolve_side(ctx, right)
+        if op == "neq":
+            return lambda ctx: _resolve_side(ctx, left) != _resolve_side(ctx, right)
+        if op == "gt":
+            return lambda ctx: _resolve_side(ctx, left) > _resolve_side(ctx, right)
+        if op == "lt":
+            return lambda ctx: _resolve_side(ctx, left) < _resolve_side(ctx, right)
+        if op == "contains":
+            return lambda ctx: _resolve_side(ctx, right) in _resolve_side(ctx, left)
+
+    # Fallback: treat as raw value
+    return lambda ctx: bool(data)
 
 
 def _resolve_value(ctx: Any, key: str) -> Any:
@@ -339,13 +618,4 @@ def _resolve_value(ctx: Any, key: str) -> Any:
     return ctx.data.get(key, ctx.previous)
 
 
-# ======================================================================
-# Pipeline.from_yaml integration
-# ======================================================================
 
-def _patch_pipeline_class() -> None:
-    """Add ``from_yaml`` / ``from_yaml_file`` class methods to Pipeline."""
-    Pipeline.from_yaml = staticmethod(load_yaml)    # type: ignore[attr-defined]
-    Pipeline.from_yaml_file = staticmethod(load_yaml_file)  # type: ignore[attr-defined]
-    Pipeline.from_json = staticmethod(load_json)    # type: ignore[attr-defined]
-    Pipeline.from_json_file = staticmethod(load_json_file)  # type: ignore[attr-defined]

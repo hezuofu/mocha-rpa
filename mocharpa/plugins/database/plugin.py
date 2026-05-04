@@ -7,7 +7,7 @@ compatible backend.
 Usage::
 
     from mocharpa.plugins.database.plugin import DatabasePlugin
-    from mocharpa.plugin.base import PluginManager
+    from mocharpa.plugins.base import PluginManager
 
     mgr = PluginManager(context)
     db = DatabasePlugin("sqlite:///app.db")
@@ -36,7 +36,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session
 
-from mocharpa.plugin.base import Plugin
+from mocharpa.plugins.base import Plugin
 
 logger = logging.getLogger("rpa.database")
 
